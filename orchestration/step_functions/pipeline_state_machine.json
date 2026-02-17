@@ -1,0 +1,308 @@
+{
+    "Comment": "Customer 360 Pipeline Orchestrator — End-to-End ETL Workflow",
+    "StartAt": "CheckIngestionStatus",
+    "States": {
+        "CheckIngestionStatus": {
+            "Type": "Task",
+            "Comment": "Verify new data has arrived in the Raw S3 layer",
+            "Resource": "arn:aws:lambda:us-east-1:123456789012:function:c360-check-ingestion",
+            "Parameters": {
+                "bucket": "c360-raw-dev",
+                "prefix": "events/",
+                "expected_min_files": 1
+            },
+            "ResultPath": "$.ingestionCheck",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed",
+                        "Lambda.ServiceException"
+                    ],
+                    "IntervalSeconds": 60,
+                    "MaxAttempts": 3,
+                    "BackoffRate": 2.0
+                }
+            ],
+            "Next": "HasNewData?"
+        },
+        "HasNewData?": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.ingestionCheck.hasNewData",
+                    "BooleanEquals": true,
+                    "Next": "RunRawToCleanETL"
+                }
+            ],
+            "Default": "NoNewDataNotification"
+        },
+        "NoNewDataNotification": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sns:publish",
+            "Parameters": {
+                "TopicArn": "arn:aws:sns:us-east-1:123456789012:c360-pipeline-alerts",
+                "Subject": "C360 Pipeline: No new data detected",
+                "Message": "The scheduled pipeline run found no new data in the raw layer. Skipping ETL."
+            },
+            "End": true
+        },
+        "RunRawToCleanETL": {
+            "Type": "Task",
+            "Comment": "Execute Glue job: Raw → Clean layer transformation",
+            "Resource": "arn:aws:states:::glue:startJobRun.sync",
+            "Parameters": {
+                "JobName": "c360-raw-to-clean",
+                "Arguments": {
+                    "--RAW_BUCKET": "c360-raw-dev",
+                    "--CLEAN_BUCKET": "c360-clean-dev",
+                    "--DATABASE": "c360_clean_dev",
+                    "--PROCESS_DATE.$": "$.processDate"
+                }
+            },
+            "ResultPath": "$.rawToCleanResult",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed"
+                    ],
+                    "IntervalSeconds": 120,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 2.0
+                }
+            ],
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "ETLFailureHandler",
+                    "ResultPath": "$.error"
+                }
+            ],
+            "Next": "RunDataQualityChecks"
+        },
+        "RunDataQualityChecks": {
+            "Type": "Task",
+            "Comment": "Validate cleaned data against quality rules",
+            "Resource": "arn:aws:lambda:us-east-1:123456789012:function:c360-data-quality",
+            "Parameters": {
+                "bucket": "c360-clean-dev",
+                "entities": [
+                    "clickstream",
+                    "customers",
+                    "products",
+                    "transactions"
+                ],
+                "thresholds": {
+                    "null_percentage_max": 5.0,
+                    "duplicate_percentage_max": 1.0,
+                    "min_row_count": 100
+                }
+            },
+            "ResultPath": "$.qualityResults",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "Lambda.ServiceException"
+                    ],
+                    "IntervalSeconds": 30,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 1.5
+                }
+            ],
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "ETLFailureHandler",
+                    "ResultPath": "$.error"
+                }
+            ],
+            "Next": "QualityGate"
+        },
+        "QualityGate": {
+            "Type": "Choice",
+            "Comment": "Proceed only if data quality checks pass",
+            "Choices": [
+                {
+                    "Variable": "$.qualityResults.overallStatus",
+                    "StringEquals": "PASS",
+                    "Next": "RunCleanToCuratedETL"
+                },
+                {
+                    "Variable": "$.qualityResults.overallStatus",
+                    "StringEquals": "WARN",
+                    "Next": "QualityWarningNotification"
+                }
+            ],
+            "Default": "QualityFailureHandler"
+        },
+        "QualityWarningNotification": {
+            "Type": "Task",
+            "Comment": "Notify team about quality warnings but continue pipeline",
+            "Resource": "arn:aws:states:::sns:publish",
+            "Parameters": {
+                "TopicArn": "arn:aws:sns:us-east-1:123456789012:c360-pipeline-alerts",
+                "Subject": "C360 Pipeline: Data quality warnings detected",
+                "Message.$": "States.Format('Quality warnings: {}', $.qualityResults.summary)"
+            },
+            "ResultPath": "$.warningNotification",
+            "Next": "RunCleanToCuratedETL"
+        },
+        "QualityFailureHandler": {
+            "Type": "Task",
+            "Comment": "Quality check failed — quarantine bad data and alert",
+            "Resource": "arn:aws:lambda:us-east-1:123456789012:function:c360-quarantine-data",
+            "Parameters": {
+                "qualityResults.$": "$.qualityResults",
+                "quarantine_bucket": "c360-quality-logs-dev"
+            },
+            "ResultPath": "$.quarantineResult",
+            "Next": "QualityFailureNotification"
+        },
+        "QualityFailureNotification": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sns:publish",
+            "Parameters": {
+                "TopicArn": "arn:aws:sns:us-east-1:123456789012:c360-pipeline-alerts",
+                "Subject": "🚨 C360 Pipeline: Data quality FAILED — pipeline halted",
+                "Message.$": "States.Format('Data quality checks failed. Bad records quarantined. Details: {}', $.qualityResults.summary)"
+            },
+            "End": true
+        },
+        "RunCleanToCuratedETL": {
+            "Type": "Task",
+            "Comment": "Execute Glue job: Clean → Curated layer (star schema)",
+            "Resource": "arn:aws:states:::glue:startJobRun.sync",
+            "Parameters": {
+                "JobName": "c360-clean-to-curated",
+                "Arguments": {
+                    "--CLEAN_BUCKET": "c360-clean-dev",
+                    "--CURATED_BUCKET": "c360-curated-dev",
+                    "--DATABASE": "c360_curated_dev",
+                    "--PROCESS_DATE.$": "$.processDate"
+                }
+            },
+            "ResultPath": "$.cleanToCuratedResult",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed"
+                    ],
+                    "IntervalSeconds": 120,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 2.0
+                }
+            ],
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "ETLFailureHandler",
+                    "ResultPath": "$.error"
+                }
+            ],
+            "Next": "LoadToRedshift"
+        },
+        "LoadToRedshift": {
+            "Type": "Task",
+            "Comment": "Execute Glue job: Curated → Redshift warehouse",
+            "Resource": "arn:aws:states:::glue:startJobRun.sync",
+            "Parameters": {
+                "JobName": "c360-curated-to-redshift",
+                "Arguments": {
+                    "--CURATED_BUCKET": "c360-curated-dev",
+                    "--REDSHIFT_CONNECTION": "c360-redshift-conn",
+                    "--REDSHIFT_DATABASE": "customer360",
+                    "--REDSHIFT_SCHEMA": "analytics",
+                    "--REDSHIFT_IAM_ROLE": "arn:aws:iam::123456789012:role/c360-redshift-role",
+                    "--PROCESS_DATE.$": "$.processDate"
+                }
+            },
+            "ResultPath": "$.redshiftLoadResult",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "States.TaskFailed"
+                    ],
+                    "IntervalSeconds": 180,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 2.0
+                }
+            ],
+            "Catch": [
+                {
+                    "ErrorEquals": [
+                        "States.ALL"
+                    ],
+                    "Next": "ETLFailureHandler",
+                    "ResultPath": "$.error"
+                }
+            ],
+            "Next": "RunPostLoadMaintenance"
+        },
+        "RunPostLoadMaintenance": {
+            "Type": "Parallel",
+            "Comment": "Run VACUUM and ANALYZE in parallel on loaded tables",
+            "Branches": [
+                {
+                    "StartAt": "VacuumAnalyze",
+                    "States": {
+                        "VacuumAnalyze": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-east-1:123456789012:function:c360-redshift-maintenance",
+                            "Parameters": {
+                                "action": "vacuum_analyze",
+                                "tables": [
+                                    "fact_sales",
+                                    "fact_clickstream",
+                                    "dim_customer",
+                                    "dim_product"
+                                ]
+                            },
+                            "End": true
+                        }
+                    }
+                },
+                {
+                    "StartAt": "RecordPipelineMetrics",
+                    "States": {
+                        "RecordPipelineMetrics": {
+                            "Type": "Task",
+                            "Resource": "arn:aws:lambda:us-east-1:123456789012:function:c360-record-metrics",
+                            "Parameters": {
+                                "pipeline_run_id.$": "$$.Execution.Id",
+                                "process_date.$": "$.processDate"
+                            },
+                            "End": true
+                        }
+                    }
+                }
+            ],
+            "ResultPath": "$.maintenanceResult",
+            "Next": "PipelineSuccessNotification"
+        },
+        "PipelineSuccessNotification": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sns:publish",
+            "Parameters": {
+                "TopicArn": "arn:aws:sns:us-east-1:123456789012:c360-pipeline-alerts",
+                "Subject": "✅ C360 Pipeline: Completed successfully",
+                "Message.$": "States.Format('Pipeline completed for {}. Execution: {}', $.processDate, $$.Execution.Id)"
+            },
+            "End": true
+        },
+        "ETLFailureHandler": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::sns:publish",
+            "Parameters": {
+                "TopicArn": "arn:aws:sns:us-east-1:123456789012:c360-pipeline-alerts",
+                "Subject": "🚨 C360 Pipeline: ETL FAILURE",
+                "Message.$": "States.Format('Pipeline failed. Error: {}. Execution: {}', $.error.Cause, $$.Execution.Id)"
+            },
+            "End": true
+        }
+    }
+}
