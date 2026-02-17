@@ -1,0 +1,182 @@
+{
+    "Version": "2012-10-17",
+    "Policies": {
+        "LambdaKinesisConsumerPolicy": {
+            "Description": "Least-privilege policy for Kinesis consumer Lambda",
+            "PolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "KinesisRead",
+                        "Effect": "Allow",
+                        "Action": [
+                            "kinesis:GetRecords",
+                            "kinesis:GetShardIterator",
+                            "kinesis:DescribeStream",
+                            "kinesis:ListShards",
+                            "kinesis:SubscribeToShard"
+                        ],
+                        "Resource": "arn:aws:kinesis:*:*:stream/c360-clickstream-events"
+                    },
+                    {
+                        "Sid": "S3RawWrite",
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:PutObject",
+                            "s3:PutObjectTagging"
+                        ],
+                        "Resource": "arn:aws:s3:::c360-raw-*/raw/*"
+                    },
+                    {
+                        "Sid": "KMSEncrypt",
+                        "Effect": "Allow",
+                        "Action": [
+                            "kms:GenerateDataKey",
+                            "kms:Encrypt"
+                        ],
+                        "Resource": "arn:aws:kms:*:*:key/*",
+                        "Condition": {
+                            "StringEquals": {
+                                "kms:ViaService": "s3.us-east-1.amazonaws.com"
+                            }
+                        }
+                    },
+                    {
+                        "Sid": "CloudWatchLogs",
+                        "Effect": "Allow",
+                        "Action": [
+                            "logs:CreateLogGroup",
+                            "logs:CreateLogStream",
+                            "logs:PutLogEvents"
+                        ],
+                        "Resource": "arn:aws:logs:*:*:log-group:/aws/lambda/c360-*"
+                    }
+                ]
+            }
+        },
+        "GlueETLJobPolicy": {
+            "Description": "Policy for Glue ETL jobs (raw-to-clean, clean-to-curated)",
+            "PolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "S3ReadWrite",
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:GetObject",
+                            "s3:PutObject",
+                            "s3:DeleteObject",
+                            "s3:ListBucket"
+                        ],
+                        "Resource": [
+                            "arn:aws:s3:::c360-raw-*",
+                            "arn:aws:s3:::c360-raw-*/*",
+                            "arn:aws:s3:::c360-clean-*",
+                            "arn:aws:s3:::c360-clean-*/*",
+                            "arn:aws:s3:::c360-curated-*",
+                            "arn:aws:s3:::c360-curated-*/*"
+                        ]
+                    },
+                    {
+                        "Sid": "GlueCatalog",
+                        "Effect": "Allow",
+                        "Action": [
+                            "glue:GetDatabase",
+                            "glue:GetTable",
+                            "glue:GetPartitions",
+                            "glue:BatchCreatePartition",
+                            "glue:UpdateTable"
+                        ],
+                        "Resource": "*"
+                    },
+                    {
+                        "Sid": "KMSAccess",
+                        "Effect": "Allow",
+                        "Action": [
+                            "kms:Decrypt",
+                            "kms:GenerateDataKey"
+                        ],
+                        "Resource": "arn:aws:kms:*:*:key/*"
+                    },
+                    {
+                        "Sid": "CloudWatchLogs",
+                        "Effect": "Allow",
+                        "Action": [
+                            "logs:CreateLogGroup",
+                            "logs:CreateLogStream",
+                            "logs:PutLogEvents"
+                        ],
+                        "Resource": "arn:aws:logs:*:*:log-group:/aws-glue/*"
+                    }
+                ]
+            }
+        },
+        "RedshiftLoadPolicy": {
+            "Description": "Policy for Redshift to COPY data from S3",
+            "PolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "S3ReadCurated",
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:GetObject",
+                            "s3:ListBucket",
+                            "s3:GetBucketLocation"
+                        ],
+                        "Resource": [
+                            "arn:aws:s3:::c360-curated-*",
+                            "arn:aws:s3:::c360-curated-*/*"
+                        ]
+                    },
+                    {
+                        "Sid": "KMSDecrypt",
+                        "Effect": "Allow",
+                        "Action": "kms:Decrypt",
+                        "Resource": "arn:aws:kms:*:*:key/*"
+                    }
+                ]
+            }
+        },
+        "StepFunctionsOrchestratorPolicy": {
+            "Description": "Policy for Step Functions to orchestrate the pipeline",
+            "PolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "InvokeLambda",
+                        "Effect": "Allow",
+                        "Action": "lambda:InvokeFunction",
+                        "Resource": "arn:aws:lambda:*:*:function:c360-*"
+                    },
+                    {
+                        "Sid": "StartGlueJobs",
+                        "Effect": "Allow",
+                        "Action": [
+                            "glue:StartJobRun",
+                            "glue:GetJobRun",
+                            "glue:GetJobRuns",
+                            "glue:BatchStopJobRun"
+                        ],
+                        "Resource": "arn:aws:glue:*:*:job/c360-*"
+                    },
+                    {
+                        "Sid": "PublishSNS",
+                        "Effect": "Allow",
+                        "Action": "sns:Publish",
+                        "Resource": "arn:aws:sns:*:*:c360-pipeline-alerts-*"
+                    },
+                    {
+                        "Sid": "XRayTracing",
+                        "Effect": "Allow",
+                        "Action": [
+                            "xray:PutTraceSegments",
+                            "xray:PutTelemetryRecords"
+                        ],
+                        "Resource": "*"
+                    }
+                ]
+            }
+        }
+    }
+}

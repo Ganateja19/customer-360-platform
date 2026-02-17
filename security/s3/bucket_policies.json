@@ -1,0 +1,134 @@
+{
+    "Version": "2012-10-17",
+    "BucketPolicies": {
+        "RawBucketPolicy": {
+            "Description": "S3 bucket policy for the Raw data layer",
+            "Statement": [
+                {
+                    "Sid": "DenyUnencryptedUploads",
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Action": "s3:PutObject",
+                    "Resource": "arn:aws:s3:::c360-raw-*/*",
+                    "Condition": {
+                        "StringNotEquals": {
+                            "s3:x-amz-server-side-encryption": "aws:kms"
+                        }
+                    }
+                },
+                {
+                    "Sid": "DenyInsecureTransport",
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Action": "s3:*",
+                    "Resource": [
+                        "arn:aws:s3:::c360-raw-*",
+                        "arn:aws:s3:::c360-raw-*/*"
+                    ],
+                    "Condition": {
+                        "Bool": {
+                            "aws:SecureTransport": "false"
+                        }
+                    }
+                },
+                {
+                    "Sid": "AllowLambdaWrite",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::123456789012:role/c360-lambda-consumer-role"
+                    },
+                    "Action": [
+                        "s3:PutObject",
+                        "s3:PutObjectTagging"
+                    ],
+                    "Resource": "arn:aws:s3:::c360-raw-*/raw/*"
+                },
+                {
+                    "Sid": "AllowGlueRead",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::123456789012:role/c360-glue-etl-role"
+                    },
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:ListBucket"
+                    ],
+                    "Resource": [
+                        "arn:aws:s3:::c360-raw-*",
+                        "arn:aws:s3:::c360-raw-*/*"
+                    ]
+                }
+            ]
+        },
+        "CuratedBucketPolicy": {
+            "Description": "S3 bucket policy for the Curated data layer",
+            "Statement": [
+                {
+                    "Sid": "DenyUnencryptedUploads",
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Action": "s3:PutObject",
+                    "Resource": "arn:aws:s3:::c360-curated-*/*",
+                    "Condition": {
+                        "StringNotEquals": {
+                            "s3:x-amz-server-side-encryption": "aws:kms"
+                        }
+                    }
+                },
+                {
+                    "Sid": "DenyInsecureTransport",
+                    "Effect": "Deny",
+                    "Principal": "*",
+                    "Action": "s3:*",
+                    "Resource": [
+                        "arn:aws:s3:::c360-curated-*",
+                        "arn:aws:s3:::c360-curated-*/*"
+                    ],
+                    "Condition": {
+                        "Bool": {
+                            "aws:SecureTransport": "false"
+                        }
+                    }
+                },
+                {
+                    "Sid": "AllowGlueReadWrite",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::123456789012:role/c360-glue-etl-role"
+                    },
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:ListBucket"
+                    ],
+                    "Resource": [
+                        "arn:aws:s3:::c360-curated-*",
+                        "arn:aws:s3:::c360-curated-*/*"
+                    ]
+                },
+                {
+                    "Sid": "AllowRedshiftRead",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::123456789012:role/c360-redshift-role"
+                    },
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:ListBucket"
+                    ],
+                    "Resource": [
+                        "arn:aws:s3:::c360-curated-*",
+                        "arn:aws:s3:::c360-curated-*/*"
+                    ]
+                }
+            ]
+        },
+        "PublicAccessBlock": {
+            "Description": "Block all public access for all C360 buckets",
+            "BlockPublicAcls": true,
+            "IgnorePublicAcls": true,
+            "BlockPublicPolicy": true,
+            "RestrictPublicBuckets": true
+        }
+    }
+}
