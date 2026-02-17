@@ -1,0 +1,118 @@
+# ============================================================
+# Customer 360 Data Platform — Central Pipeline Configuration
+# ============================================================
+
+project:
+  name: customer-360-platform
+  environment: dev          # dev | staging | prod
+  region: us-east-1
+  account_id: "123456789012"
+
+# ── S3 Data Lake ─────────────────────────────────────────────
+s3:
+  bucket_prefix: "c360"
+  layers:
+    raw:
+      bucket: "c360-raw-${environment}"
+      prefix: "raw/"
+      retention_days: 90
+    clean:
+      bucket: "c360-clean-${environment}"
+      prefix: "clean/"
+      retention_days: 180
+    curated:
+      bucket: "c360-curated-${environment}"
+      prefix: "curated/"
+      retention_days: 365
+    quality_logs:
+      bucket: "c360-quality-logs-${environment}"
+      prefix: "quality/"
+      retention_days: 30
+
+# ── Kinesis ──────────────────────────────────────────────────
+kinesis:
+  stream_name: "c360-clickstream-events"
+  shard_count: 2
+  retention_hours: 24
+  consumer_batch_size: 100
+
+# ── AWS Glue ─────────────────────────────────────────────────
+glue:
+  database_name: "customer_360_db"
+  jobs:
+    raw_to_clean:
+      name: "c360-raw-to-clean"
+      worker_type: "G.1X"
+      num_workers: 5
+      timeout_minutes: 60
+    clean_to_curated:
+      name: "c360-clean-to-curated"
+      worker_type: "G.1X"
+      num_workers: 5
+      timeout_minutes: 60
+    curated_to_redshift:
+      name: "c360-curated-to-redshift"
+      worker_type: "G.1X"
+      num_workers: 3
+      timeout_minutes: 30
+  crawlers:
+    raw_crawler: "c360-raw-crawler"
+    clean_crawler: "c360-clean-crawler"
+    curated_crawler: "c360-curated-crawler"
+
+# ── Amazon Redshift ──────────────────────────────────────────
+redshift:
+  cluster_identifier: "c360-warehouse"
+  database: "customer360"
+  schema: "analytics"
+  node_type: "dc2.large"
+  num_nodes: 2
+  master_username: "admin"
+  port: 5439
+  vpc_id: "vpc-xxxxxxxxx"
+  iam_role: "arn:aws:iam::123456789012:role/c360-redshift-role"
+
+# ── Step Functions ───────────────────────────────────────────
+orchestration:
+  state_machine_name: "c360-pipeline-orchestrator"
+  schedule: "rate(1 hour)"
+  retry:
+    max_attempts: 3
+    interval_seconds: 60
+    backoff_rate: 2.0
+
+# ── Data Quality ─────────────────────────────────────────────
+data_quality:
+  thresholds:
+    null_percentage_max: 5.0      # fail if >5% nulls
+    duplicate_percentage_max: 1.0  # fail if >1% duplicates
+    min_row_count: 100             # fail if fewer than 100 rows
+    freshness_hours_max: 6         # alert if data >6 hours old
+  quarantine_prefix: "quarantine/"
+
+# ── Monitoring ───────────────────────────────────────────────
+monitoring:
+  sns_topic: "c360-pipeline-alerts"
+  email_subscribers:
+    - "data-team@example.com"
+  alarms:
+    glue_job_failure:
+      threshold: 1
+      period_seconds: 300
+    lambda_error_rate:
+      threshold: 5
+      period_seconds: 300
+    kinesis_iterator_age_ms:
+      threshold: 60000
+      period_seconds: 300
+    redshift_query_duration_ms:
+      threshold: 30000
+      period_seconds: 600
+
+# ── Security ─────────────────────────────────────────────────
+security:
+  kms_key_alias: "alias/c360-data-key"
+  enable_s3_encryption: true
+  enable_redshift_encryption: true
+  enable_cloudtrail: true
+  block_public_access: true
