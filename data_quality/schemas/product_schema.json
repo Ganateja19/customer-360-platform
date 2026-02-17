@@ -1,0 +1,51 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Product",
+    "description": "Schema for product catalog data",
+    "type": "object",
+    "required": [
+        "product_id",
+        "product_name",
+        "category",
+        "price"
+    ],
+    "properties": {
+        "product_id": {
+            "type": "string",
+            "pattern": "^PROD-\\d{4}$"
+        },
+        "product_name": {
+            "type": "string",
+            "minLength": 1
+        },
+        "category": {
+            "type": "string"
+        },
+        "subcategory": {
+            "type": "string"
+        },
+        "brand": {
+            "type": "string"
+        },
+        "price": {
+            "type": "number",
+            "exclusiveMinimum": 0
+        },
+        "cost": {
+            "type": "number",
+            "minimum": 0
+        },
+        "weight_kg": {
+            "type": "number",
+            "minimum": 0
+        },
+        "is_active": {
+            "type": "boolean"
+        },
+        "created_date": {
+            "type": "string",
+            "format": "date"
+        }
+    },
+    "additionalProperties": false
+}

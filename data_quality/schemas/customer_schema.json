@@ -1,0 +1,80 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Customer",
+    "description": "Schema for customer master data",
+    "type": "object",
+    "required": [
+        "customer_id",
+        "first_name",
+        "last_name",
+        "email"
+    ],
+    "properties": {
+        "customer_id": {
+            "type": "string",
+            "pattern": "^CUST-\\d{6}$"
+        },
+        "first_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+        },
+        "last_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+        },
+        "email": {
+            "type": "string",
+            "format": "email"
+        },
+        "phone": {
+            "type": "string"
+        },
+        "date_of_birth": {
+            "type": "string",
+            "format": "date"
+        },
+        "gender": {
+            "type": "string",
+            "enum": [
+                "M",
+                "F",
+                "Other",
+                "Prefer not to say"
+            ]
+        },
+        "address_street": {
+            "type": "string"
+        },
+        "address_city": {
+            "type": "string"
+        },
+        "address_state": {
+            "type": "string"
+        },
+        "address_zip": {
+            "type": "string"
+        },
+        "address_country": {
+            "type": "string"
+        },
+        "registration_date": {
+            "type": "string",
+            "format": "date"
+        },
+        "customer_segment": {
+            "type": "string",
+            "enum": [
+                "premium",
+                "standard",
+                "basic"
+            ]
+        },
+        "lifetime_value": {
+            "type": "number",
+            "minimum": 0
+        }
+    },
+    "additionalProperties": false
+}
