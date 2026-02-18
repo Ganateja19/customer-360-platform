@@ -2,7 +2,7 @@
 
 A **production-grade, cloud-native data engineering platform** built on AWS that ingests real-time and batch data, applies layered transformations, models it as a star schema, and serves analytics dashboards — with full orchestration, data quality, monitoring, and Infrastructure as Code.
 
-### 🔗 [Live Demo →](https://ganateja19-customer-360-platform.streamlit.app)
+### 🔗 [Live Demo →](https://customer-360-platform-hnsr2z6bpmrqs43d8qnarf.streamlit.app/)
 
 
 
