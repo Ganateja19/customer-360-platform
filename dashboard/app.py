@@ -33,67 +33,66 @@ st.markdown("""
     }
 
     .main-header {
-        background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+        background: linear-gradient(135deg, #FFFFFF 0%, #F0EFEB 100%);
         padding: 2rem 2.5rem;
         border-radius: 16px;
         margin-bottom: 1.5rem;
-        color: white;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        color: #1E293B;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        border: 1px solid #E5E2DC;
     }
 
     .main-header h1 {
         font-size: 2.2rem;
         font-weight: 700;
         margin: 0;
-        background: linear-gradient(90deg, #fff, #a78bfa);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #1E293B;
     }
 
     .main-header p {
-        color: #c4b5fd;
+        color: #64748B;
         font-size: 1rem;
         margin-top: 0.3rem;
     }
 
     .metric-card {
-        background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+        background: #FFFFFF;
         padding: 1.5rem;
         border-radius: 14px;
-        color: white;
+        color: #1E293B;
         text-align: center;
-        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
-        border: 1px solid rgba(139, 92, 246, 0.2);
-        transition: transform 0.2s ease;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+        border: 1px solid #E8E5E0;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
     .metric-card:hover {
         transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
     }
 
     .metric-value {
         font-size: 2.2rem;
         font-weight: 700;
-        background: linear-gradient(90deg, #818cf8, #c084fc);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: #4F46E5;
     }
 
     .metric-label {
-        font-size: 0.85rem;
-        color: #a5b4fc;
+        font-size: 0.8rem;
+        color: #94A3B8;
         margin-top: 0.3rem;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 1.2px;
+        font-weight: 500;
     }
 
     .section-header {
         font-size: 1.3rem;
         font-weight: 600;
-        color: #e0e7ff;
+        color: #1E293B;
         margin: 1.5rem 0 1rem;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+        border-bottom: 2px solid #E8E5E0;
     }
 
     .pipeline-badge {
@@ -106,17 +105,18 @@ st.markdown("""
     }
 
     .badge-green {
-        background: rgba(34, 197, 94, 0.15);
-        color: #4ade80;
-        border: 1px solid rgba(34, 197, 94, 0.3);
+        background: rgba(16, 185, 129, 0.1);
+        color: #059669;
+        border: 1px solid rgba(16, 185, 129, 0.25);
     }
 
     .stSidebar > div:first-child {
-        background: linear-gradient(180deg, #0f0c29 0%, #1e1b4b 100%);
+        background: linear-gradient(180deg, #FFFFFF 0%, #F5F3EF 100%);
+        border-right: 1px solid #E8E5E0;
     }
 
     div[data-testid="stSidebar"] .stMarkdown {
-        color: #e0e7ff;
+        color: #334155;
     }
 
     .stTabs [data-baseweb="tab-list"] {
@@ -129,6 +129,7 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 # ── Data Loading ─────────────────────────────────────────────
@@ -317,8 +318,8 @@ def format_currency(val):
 CHART_THEME = {
     "paper_bgcolor": "rgba(0,0,0,0)",
     "plot_bgcolor": "rgba(0,0,0,0)",
-    "font": {"color": "#e0e7ff", "family": "Inter"},
-    "colorway": ["#818cf8", "#c084fc", "#f472b6", "#fb923c", "#34d399", "#38bdf8", "#fbbf24"],
+    "font": {"color": "#334155", "family": "Inter"},
+    "colorway": ["#4F46E5", "#0D9488", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4", "#EC4899"],
 }
 
 
@@ -329,8 +330,8 @@ def style_chart(fig, height=400):
         margin=dict(l=40, r=20, t=50, b=40),
         legend=dict(bgcolor="rgba(0,0,0,0)"),
     )
-    fig.update_xaxes(gridcolor="rgba(139,92,246,0.1)", zeroline=False)
-    fig.update_yaxes(gridcolor="rgba(139,92,246,0.1)", zeroline=False)
+    fig.update_xaxes(gridcolor="rgba(0,0,0,0.06)", zeroline=False)
+    fig.update_yaxes(gridcolor="rgba(0,0,0,0.06)", zeroline=False)
     return fig
 
 
@@ -391,11 +392,11 @@ if page == "📊 Executive Overview":
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         fig.add_trace(go.Bar(
             x=monthly['transaction_date'], y=monthly['revenue'],
-            name="Revenue", marker_color="#818cf8", opacity=0.8
+            name="Revenue", marker_color="#4F46E5", opacity=0.8
         ))
         fig.add_trace(go.Scatter(
             x=monthly['transaction_date'], y=monthly['orders'],
-            name="Orders", line=dict(color="#f472b6", width=3),
+            name="Orders", line=dict(color="#0D9488", width=3),
             mode="lines+markers"
         ), secondary_y=True)
         fig.update_yaxes(title_text="Revenue ($)", secondary_y=False)
@@ -445,7 +446,7 @@ elif page == "👥 Customer Analytics":
         st.markdown('<div class="section-header">💰 Lifetime Value Distribution</div>', unsafe_allow_html=True)
         fig = px.histogram(customers, x='lifetime_value', nbins=50,
                            color='customer_segment',
-                           color_discrete_sequence=["#818cf8", "#c084fc", "#f472b6"],
+                           color_discrete_sequence=["#4F46E5", "#0D9488", "#F59E0B"],
                            barmode='overlay', opacity=0.7)
         fig.update_xaxes(title_text="Lifetime Value ($)")
         st.plotly_chart(style_chart(fig, 400), use_container_width=True)
@@ -455,7 +456,7 @@ elif page == "👥 Customer Analytics":
         seg_ltv = customers.groupby('customer_segment')['lifetime_value'].agg(['mean', 'median', 'count']).reset_index()
         seg_ltv.columns = ['Segment', 'Mean LTV', 'Median LTV', 'Count']
         fig = px.bar(seg_ltv, x='Segment', y='Mean LTV', color='Segment',
-                     text='Count', color_discrete_sequence=["#818cf8", "#c084fc", "#f472b6"])
+                     text='Count', color_discrete_sequence=["#4F46E5", "#0D9488", "#F59E0B"])
         fig.update_traces(texttemplate='n=%{text:,}', textposition='outside')
         st.plotly_chart(style_chart(fig, 400), use_container_width=True)
 
@@ -465,7 +466,7 @@ elif page == "👥 Customer Analytics":
     reg_monthly['registration_date'] = reg_monthly['registration_date'].astype(str)
     fig = px.area(reg_monthly, x='registration_date', y='new_customers',
                   color_discrete_sequence=["#818cf8"])
-    fig.update_traces(fill='tozeroy', fillcolor='rgba(129,140,248,0.2)')
+    fig.update_traces(fill='tozeroy', fillcolor='rgba(79,70,229,0.12)')
     st.plotly_chart(style_chart(fig, 350), use_container_width=True)
 
     # Demographics
@@ -527,7 +528,7 @@ elif page == "🛒 Transaction Insights":
     with col2:
         st.markdown('<div class="section-header">📊 Order Value Distribution</div>', unsafe_allow_html=True)
         fig = px.histogram(transactions, x='total_amount', nbins=60,
-                           color_discrete_sequence=["#818cf8"])
+                           color_discrete_sequence=["#4F46E5"])
         fig.update_xaxes(title_text="Order Value ($)")
         st.plotly_chart(style_chart(fig, 380), use_container_width=True)
 
@@ -540,12 +541,12 @@ elif page == "🛒 Transaction Insights":
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.add_trace(go.Scatter(
         x=daily['transaction_date'], y=daily['volume'],
-        name="Volume", fill='tozeroy', fillcolor='rgba(129,140,248,0.2)',
-        line=dict(color="#818cf8")
+        name="Volume", fill='tozeroy', fillcolor='rgba(79,70,229,0.12)',
+        line=dict(color="#4F46E5")
     ))
     fig.add_trace(go.Scatter(
         x=daily['transaction_date'], y=daily['revenue'],
-        name="Revenue", line=dict(color="#f472b6", width=2)
+        name="Revenue", line=dict(color="#0D9488", width=2)
     ), secondary_y=True)
     st.plotly_chart(style_chart(fig, 380), use_container_width=True)
 
@@ -623,7 +624,7 @@ elif page == "📱 Clickstream Analysis":
     fig = go.Figure(go.Funnel(
         y=funnel_stages, x=funnel_values,
         textinfo="value+percent initial",
-        marker=dict(color=["#818cf8", "#a78bfa", "#c084fc", "#e879f9"])
+        marker=dict(color=["#4F46E5", "#6366F1", "#8B5CF6", "#A78BFA"])
     ))
     st.plotly_chart(style_chart(fig, 400), use_container_width=True)
 
