@@ -133,38 +133,143 @@ st.markdown("""
 
 # ── Data Loading ─────────────────────────────────────────────
 @st.cache_data
-def load_data():
-    """Load sample data from generated output files."""
-    base = Path(__file__).parent.parent / "sample_data" / "output"
+def generate_sample_data():
+    """Generate realistic sample data in memory for cloud deployment."""
+    import random
+    import numpy as np
 
-    customers = pd.read_csv(base / "customers.csv")
-    products = pd.read_csv(base / "products.csv")
-    transactions = pd.read_csv(base / "transactions.csv")
+    random.seed(42)
+    np.random.seed(42)
 
+    # ── Customers ────────────────────────────────────────────
+    n_customers = 2000
+    first_names = ["James","Mary","John","Patricia","Robert","Jennifer","Michael","Linda",
+                   "William","Elizabeth","David","Barbara","Richard","Susan","Joseph","Jessica",
+                   "Thomas","Sarah","Charles","Karen","Christopher","Lisa","Daniel","Nancy",
+                   "Matthew","Betty","Anthony","Margaret","Mark","Sandra","Donald","Ashley",
+                   "Steven","Dorothy","Paul","Kimberly","Andrew","Emily","Joshua","Donna"]
+    last_names = ["Smith","Johnson","Williams","Brown","Jones","Garcia","Miller","Davis",
+                  "Rodriguez","Martinez","Hernandez","Lopez","Gonzalez","Wilson","Anderson",
+                  "Thomas","Taylor","Moore","Jackson","Martin","Lee","Perez","Thompson",
+                  "White","Harris","Sanchez","Clark","Ramirez","Lewis","Robinson"]
+    states = ["CA","TX","NY","FL","IL","PA","OH","GA","NC","MI","NJ","VA","WA","AZ","MA",
+              "TN","IN","MO","MD","WI","CO","MN","SC","AL","LA","KY","OR","OK","CT","UT"]
+    segments = ["Premium", "Standard", "Basic"]
+    genders = ["Male", "Female", "Non-Binary"]
+
+    cust_records = []
+    for i in range(1, n_customers + 1):
+        reg_date = datetime(2023, 1, 1) + timedelta(days=random.randint(0, 730))
+        cust_records.append({
+            "customer_id": f"CUST-{i:06d}",
+            "first_name": random.choice(first_names),
+            "last_name": random.choice(last_names),
+            "email": f"user{i}@example.com",
+            "gender": random.choice(genders),
+            "date_of_birth": datetime(1960, 1, 1) + timedelta(days=random.randint(0, 18000)),
+            "registration_date": reg_date,
+            "address_state": random.choice(states),
+            "customer_segment": random.choices(segments, weights=[20, 50, 30])[0],
+            "lifetime_value": round(random.gauss(1500, 800), 2),
+        })
+    customers = pd.DataFrame(cust_records)
+    customers['lifetime_value'] = customers['lifetime_value'].clip(lower=10)
     customers['registration_date'] = pd.to_datetime(customers['registration_date'])
     customers['date_of_birth'] = pd.to_datetime(customers['date_of_birth'])
+
+    # ── Products ─────────────────────────────────────────────
+    categories = ["Electronics","Clothing","Home & Garden","Sports","Books",
+                  "Beauty","Toys","Food & Beverage","Automotive","Health"]
+    prod_records = []
+    for i in range(1, 201):
+        cat = random.choice(categories)
+        prod_records.append({
+            "product_id": f"PROD-{i:04d}",
+            "product_name": f"{cat} Item {i}",
+            "category": cat,
+            "price": round(random.uniform(5, 500), 2),
+        })
+    products = pd.DataFrame(prod_records)
+
+    # ── Transactions ─────────────────────────────────────────
+    n_transactions = 20000
+    channels = ["web", "mobile", "in_store", "partner"]
+    payment_methods = ["credit_card", "debit_card", "paypal", "apple_pay", "bank_transfer"]
+    tx_records = []
+    for i in range(1, n_transactions + 1):
+        prod = products.sample(1).iloc[0]
+        qty = random.randint(1, 5)
+        unit_price = prod['price']
+        discount = round(random.uniform(0, unit_price * 0.3), 2) if random.random() < 0.35 else 0
+        total = round(qty * unit_price - discount, 2)
+        tx_records.append({
+            "transaction_id": f"TX-{i:07d}",
+            "customer_id": f"CUST-{random.randint(1, n_customers):06d}",
+            "product_id": prod['product_id'],
+            "transaction_date": datetime(2024, 1, 1) + timedelta(hours=random.randint(0, 8760)),
+            "quantity": qty,
+            "unit_price": unit_price,
+            "discount_amount": discount,
+            "total_amount": max(total, 1.0),
+            "channel": random.choices(channels, weights=[40, 30, 20, 10])[0],
+            "payment_method": random.choice(payment_methods),
+        })
+    transactions = pd.DataFrame(tx_records)
     transactions['transaction_date'] = pd.to_datetime(transactions['transaction_date'])
 
-    clickstream_path = base / "clickstream.json"
-    clickstream_records = []
-    if clickstream_path.exists():
-        with open(clickstream_path) as f:
-            for line in f:
-                if line.strip():
-                    clickstream_records.append(json.loads(line))
-    clickstream = pd.DataFrame(clickstream_records)
-    if 'event_timestamp' in clickstream.columns:
-        clickstream['event_timestamp'] = pd.to_datetime(clickstream['event_timestamp'])
+    # ── Clickstream ──────────────────────────────────────────
+    n_events = 10000
+    event_types = ["page_view", "search", "product_view", "add_to_cart", "purchase", "remove_from_cart"]
+    event_weights = [35, 20, 20, 12, 8, 5]
+    click_channels = ["web", "mobile", "tablet"]
+    cs_records = []
+    for i in range(1, n_events + 1):
+        cs_records.append({
+            "event_id": f"EVT-{i:08d}",
+            "event_type": random.choices(event_types, weights=event_weights)[0],
+            "event_timestamp": datetime(2025, 1, 1) + timedelta(seconds=random.randint(0, 2592000)),
+            "customer_id": f"CUST-{random.randint(1, n_customers):06d}",
+            "session_id": f"SESS-{random.randint(1, 3000):06d}",
+            "channel": random.choices(click_channels, weights=[50, 35, 15])[0],
+        })
+    clickstream = pd.DataFrame(cs_records)
+    clickstream['event_timestamp'] = pd.to_datetime(clickstream['event_timestamp'])
 
     return customers, products, transactions, clickstream
 
 
-try:
-    customers, products, transactions, clickstream = load_data()
-    data_loaded = True
-except Exception as e:
-    data_loaded = False
-    st.error(f"Run the data generators first: `python sample_data/generators/generate_customers.py`\n\n{e}")
+@st.cache_data
+def load_data():
+    """Load sample data from files or generate on-the-fly for cloud deployment."""
+    base = Path(__file__).parent.parent / "sample_data" / "output"
+
+    if (base / "customers.csv").exists():
+        customers = pd.read_csv(base / "customers.csv")
+        products = pd.read_csv(base / "products.csv")
+        transactions = pd.read_csv(base / "transactions.csv")
+
+        customers['registration_date'] = pd.to_datetime(customers['registration_date'])
+        customers['date_of_birth'] = pd.to_datetime(customers['date_of_birth'])
+        transactions['transaction_date'] = pd.to_datetime(transactions['transaction_date'])
+
+        clickstream_path = base / "clickstream.json"
+        clickstream_records = []
+        if clickstream_path.exists():
+            with open(clickstream_path) as f:
+                for line in f:
+                    if line.strip():
+                        clickstream_records.append(json.loads(line))
+        clickstream = pd.DataFrame(clickstream_records)
+        if 'event_timestamp' in clickstream.columns:
+            clickstream['event_timestamp'] = pd.to_datetime(clickstream['event_timestamp'])
+
+        return customers, products, transactions, clickstream
+    else:
+        return generate_sample_data()
+
+
+customers, products, transactions, clickstream = load_data()
+data_loaded = True
 
 
 # ── Sidebar ──────────────────────────────────────────────────
@@ -196,8 +301,8 @@ with st.sidebar:
         if len(clickstream) > 0:
             st.markdown(f"**Stream:** {len(clickstream):,} events")
 
-if not data_loaded:
-    st.stop()
+
+
 
 
 # ── Helper Functions ─────────────────────────────────────────
